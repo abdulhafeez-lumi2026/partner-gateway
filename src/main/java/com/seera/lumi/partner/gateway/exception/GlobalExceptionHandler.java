@@ -1,6 +1,7 @@
 package com.seera.lumi.partner.gateway.exception;
 
 import com.seera.lumi.partner.gateway.controller.response.ErrorResponse;
+import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +44,22 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.valueOf(ex.getHttpStatus())).body(errorResponse);
+    }
+
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<ErrorResponse> handleFeignException(FeignException ex) {
+        log.error("Feign client error: status={}, message={}", ex.status(), ex.getMessage(), ex);
+
+        int status = ex.status() > 0 ? 502 : 503;
+        String code = "UPSTREAM_SERVICE_ERROR";
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .code(code)
+                .message("An error occurred communicating with an upstream service")
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(status).body(errorResponse);
     }
 
     @ExceptionHandler(Exception.class)

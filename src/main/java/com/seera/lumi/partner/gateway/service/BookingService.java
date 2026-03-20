@@ -1,67 +1,151 @@
 package com.seera.lumi.partner.gateway.service;
 
-import com.seera.lumi.partner.gateway.client.BookingClient;
-import com.seera.lumi.partner.gateway.client.DriverClient;
+import com.seera.lumi.partner.gateway.client.CoreBookingClient;
+import com.seera.lumi.partner.gateway.client.request.CreateCoreBookingRequest;
+import com.seera.lumi.partner.gateway.client.response.CancelCoreBookingResponse;
+import com.seera.lumi.partner.gateway.client.response.CoreBookingResponse;
 import com.seera.lumi.partner.gateway.controller.request.CreateBookingRequest;
+import com.seera.lumi.partner.gateway.controller.request.DriverInfo;
 import com.seera.lumi.partner.gateway.controller.response.BookingResponse;
 import com.seera.lumi.partner.gateway.controller.response.CancelBookingResponse;
 import com.seera.lumi.partner.gateway.exception.PartnerException;
+import com.seera.lumi.partner.gateway.security.PartnerContext;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class BookingService {
 
-    private final BookingClient bookingClient;
-    private final DriverClient driverClient;
+    private final CoreBookingClient coreBookingClient;
 
     /**
-     * Creates a booking for the partner.
-     * <p>
-     * TODO: Booking creation requires v2 endpoints on booking-service that don't exist yet.
-     * The flow would be:
-     * 1. Validate quote exists and is still valid (from Redis cache)
-     * 2. Create/find driver via driverClient.createDriver()
-     * 3. Create booking via booking-service (with source=PARTNER, partnerCode from PartnerContext)
-     * 4. Map to BookingResponse
+     * Creates a booking for the partner via core-booking-service.
      */
     public BookingResponse createBooking(CreateBookingRequest request) {
-        throw new PartnerException("NOT_IMPLEMENTED",
-                "Booking creation is not yet available. Requires v2 booking-service endpoints.", 501);
+        String partnerCode = PartnerContext.getPartnerCode();
+        log.info("Creating booking for partner={}, quoteId={}", partnerCode, request.getQuoteId());
+
+        try {
+            CreateCoreBookingRequest coreRequest = CreateCoreBookingRequest.builder()
+                    .partnerCode(partnerCode)
+                    .quoteId(request.getQuoteId())
+                    .packageType(request.getPackageType())
+                    .firstName(request.getDriver().getFirstName())
+                    .lastName(request.getDriver().getLastName())
+                    .email(request.getDriver().getEmail())
+                    .phone(request.getDriver().getPhone())
+                    .passportNumber(request.getDriver().getPassportNumber())
+                    .nationality(request.getDriver().getNationality())
+                    .build();
+
+            CoreBookingResponse coreResponse = coreBookingClient.createPartnerBooking(coreRequest);
+            return mapToBookingResponse(coreResponse);
+        } catch (FeignException e) {
+            log.error("Failed to create booking via core-booking-service: status={}, body={}",
+                    e.status(), e.contentUTF8(), e);
+            throw new PartnerException("BOOKING_CREATE_FAILED",
+                    "Failed to create booking: " + extractMessage(e), mapHttpStatus(e));
+        }
     }
 
     /**
-     * Retrieves booking details by reference number.
-     * <p>
-     * TODO: This needs an internal service-to-service auth token to call booking-service.
-     * The booking summary endpoint requires an Authorization header. Once service-to-service
-     * auth is implemented, this can call bookingClient.getBookingSummary() and map the response.
+     * Retrieves booking details by reference number via core-booking-service.
      */
     public BookingResponse getBooking(String bookingRef) {
-        throw new PartnerException("NOT_IMPLEMENTED",
-                "Booking retrieval is not yet available. Requires service-to-service auth.", 501);
+        log.info("Getting booking: bookingRef={}", bookingRef);
+
+        try {
+            CoreBookingResponse coreResponse = coreBookingClient.getPartnerBooking(bookingRef);
+            return mapToBookingResponse(coreResponse);
+        } catch (FeignException.NotFound e) {
+            log.warn("Booking not found: bookingRef={}", bookingRef);
+            throw new PartnerException("BOOKING_NOT_FOUND",
+                    "Booking not found: " + bookingRef, 404, e);
+        } catch (FeignException e) {
+            log.error("Failed to get booking via core-booking-service: status={}, body={}",
+                    e.status(), e.contentUTF8(), e);
+            throw new PartnerException("BOOKING_FETCH_FAILED",
+                    "Failed to retrieve booking: " + extractMessage(e), mapHttpStatus(e));
+        }
     }
 
     /**
-     * Cancels a booking by reference number.
-     * <p>
-     * TODO: Requires cancel API endpoint on booking-service that doesn't exist yet.
+     * Cancels a booking by reference number via core-booking-service.
      */
     public CancelBookingResponse cancelBooking(String bookingRef) {
-        throw new PartnerException("NOT_IMPLEMENTED",
-                "Booking cancellation is not yet available. Requires cancel API on booking-service.", 501);
+        log.info("Cancelling booking: bookingRef={}", bookingRef);
+
+        try {
+            CancelCoreBookingResponse coreResponse = coreBookingClient.cancelPartnerBooking(bookingRef);
+            return CancelBookingResponse.builder()
+                    .bookingReference(coreResponse.getReferenceNo())
+                    .status(coreResponse.getStatus())
+                    .cancellationFee(coreResponse.getCancellationFee() != null
+                            ? BigDecimal.valueOf(coreResponse.getCancellationFee()) : null)
+                    .refundAmount(coreResponse.getRefundAmount() != null
+                            ? BigDecimal.valueOf(coreResponse.getRefundAmount()) : null)
+                    .build();
+        } catch (FeignException.NotFound e) {
+            log.warn("Booking not found for cancellation: bookingRef={}", bookingRef);
+            throw new PartnerException("BOOKING_NOT_FOUND",
+                    "Booking not found: " + bookingRef, 404, e);
+        } catch (FeignException e) {
+            log.error("Failed to cancel booking via core-booking-service: status={}, body={}",
+                    e.status(), e.contentUTF8(), e);
+            throw new PartnerException("BOOKING_CANCEL_FAILED",
+                    "Failed to cancel booking: " + extractMessage(e), mapHttpStatus(e));
+        }
     }
 
     /**
      * Confirms a booking by reference number.
-     * <p>
-     * TODO: Requires confirm API endpoint on booking-service that doesn't exist yet.
+     * Not yet implemented -- requires payment integration.
      */
     public BookingResponse confirmBooking(String bookingRef) {
         throw new PartnerException("NOT_IMPLEMENTED",
-                "Booking confirmation is not yet available. Requires confirm API on booking-service.", 501);
+                "Booking confirmation is not yet available. Requires payment integration.", 501);
+    }
+
+    private BookingResponse mapToBookingResponse(CoreBookingResponse core) {
+        DriverInfo driver = DriverInfo.builder()
+                .firstName(core.getDriverFirstName())
+                .lastName(core.getDriverLastName())
+                .email(core.getDriverEmail())
+                .build();
+
+        return BookingResponse.builder()
+                .bookingReference(core.getReferenceNo())
+                .status(core.getStatus())
+                .vehicleGroup(core.getVehicleGroupId() != null ? String.valueOf(core.getVehicleGroupId()) : null)
+                .pickupLocation(core.getPickupBranchId() != null ? String.valueOf(core.getPickupBranchId()) : null)
+                .dropoffLocation(core.getDropOffBranchId() != null ? String.valueOf(core.getDropOffBranchId()) : null)
+                .pickupDateTime(core.getPickupDateTime())
+                .dropoffDateTime(core.getDropOffDateTime())
+                .driver(driver)
+                .createdAt(core.getCreatedOn())
+                .build();
+    }
+
+    private String extractMessage(FeignException e) {
+        String body = e.contentUTF8();
+        if (body != null && !body.isEmpty()) {
+            return body;
+        }
+        return e.getMessage();
+    }
+
+    private int mapHttpStatus(FeignException e) {
+        int status = e.status();
+        if (status == 400) return 400;
+        if (status == 404) return 404;
+        if (status == 409) return 409;
+        if (status == 422) return 422;
+        return 502;
     }
 }

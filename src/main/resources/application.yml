@@ -49,3 +49,5 @@ api:
     baseUrl: ${FLEET_SERVICE_URL:http://localhost:8099}
   partner:
     baseUrl: ${PARTNER_SERVICE_URL:http://localhost:9997}
+  core-booking:
+    baseUrl: ${CORE_BOOKING_SERVICE_URL:http://localhost:9996}

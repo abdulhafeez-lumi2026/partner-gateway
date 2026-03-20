@@ -13,11 +13,8 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/lumi}
+jwt:
+  secret: ${JWT_SECRET:lumi-partner-jwt-secret-key-that-is-at-least-256-bits-long-for-hmac-sha256}
 
 management:
   endpoints:

@@ -1,5 +1,6 @@
 package com.seera.lumi.partner.gateway.filter;
 
+import com.seera.lumi.partner.gateway.security.PartnerContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +26,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (apiKey != null) {
             log.debug("Request received with API key: {}", apiKey);
             // TODO: Implement actual rate limiting using Redis
+        }
+
+        Integer rateLimit = PartnerContext.getRateLimit();
+        if (rateLimit != null) {
+            log.debug("Partner {} has rate limit: {} requests/min",
+                    PartnerContext.getPartnerCode(), rateLimit);
+            // TODO: Implement actual rate limiting using Redis with JWT-based rate limit
         }
 
         filterChain.doFilter(request, response);

@@ -1,0 +1,54 @@
+server:
+  port: 9998
+  compression:
+    enabled: true
+  shutdown: graceful
+
+spring:
+  application:
+    name: lumi-core-partner-gateway
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/lumi}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+  okhttp:
+    enabled: true
+
+# Service URLs
+api:
+  pricing:
+    baseUrl: ${PRICING_SERVICE_URL:http://localhost:8188}
+  booking:
+    baseUrl: ${BOOKING_SERVICE_URL:http://localhost:8086}
+  driver:
+    baseUrl: ${DRIVER_SERVICE_URL:http://localhost:8087}
+  branch:
+    baseUrl: ${BRANCH_SERVICE_URL:http://localhost:8085}
+  fleet:
+    baseUrl: ${FLEET_SERVICE_URL:http://localhost:8099}
+  partner:
+    baseUrl: ${PARTNER_SERVICE_URL:http://localhost:9997}

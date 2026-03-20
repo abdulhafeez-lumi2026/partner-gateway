@@ -1,0 +1,389 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-03-20T00:00:00.000Z",
+  "__export_source": "insomnia.desktop",
+  "resources": [
+    {
+      "_id": "wrk_partner_api",
+      "_type": "workspace",
+      "name": "Lumi Partner API",
+      "description": "End-to-end flow for Lumi Partner/Aggregator Integration",
+      "scope": "collection",
+      "parentId": null
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "name": "Base Environment",
+      "parentId": "wrk_partner_api",
+      "data": {
+        "gateway_url": "http://localhost:9998",
+        "partner_service_url": "http://localhost:9997",
+        "booking_service_url": "http://localhost:9996",
+        "client_id": "meili_prod_client",
+        "client_secret": "meili_secret_2026",
+        "access_token": "",
+        "booking_ref": "",
+        "quote_id": ""
+      }
+    },
+    {
+      "_id": "env_local",
+      "_type": "environment",
+      "name": "Local",
+      "parentId": "env_base",
+      "data": {
+        "gateway_url": "http://localhost:9998",
+        "partner_service_url": "http://localhost:9997",
+        "booking_service_url": "http://localhost:9996"
+      }
+    },
+    {
+      "_id": "env_dev",
+      "_type": "environment",
+      "name": "Dev",
+      "parentId": "env_base",
+      "data": {
+        "gateway_url": "https://dev-partner-gateway.lumi.com",
+        "partner_service_url": "https://dev-partner-service.lumi.com",
+        "booking_service_url": "https://dev-core-booking.lumi.com"
+      }
+    },
+
+    {
+      "_id": "fld_1_auth",
+      "_type": "request_group",
+      "name": "1. Authentication",
+      "parentId": "wrk_partner_api",
+      "description": "Get JWT token from Partner Service"
+    },
+    {
+      "_id": "req_1_1_get_token",
+      "_type": "request",
+      "name": "1.1 Get Access Token",
+      "parentId": "fld_1_auth",
+      "method": "POST",
+      "url": "{{ _.partner_service_url }}/api/partner/auth/token",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"clientId\": \"{{ _.client_id }}\",\n  \"clientSecret\": \"{{ _.client_secret }}\"\n}"
+      },
+      "description": "Authenticate with Partner Service using client credentials.\n\nAfter running, copy `accessToken` from response and set it in the environment variable `access_token`.\n\nOr use Insomnia's Response → Body Attribute to auto-chain:\n  $.accessToken → access_token"
+    },
+    {
+      "_id": "req_1_2_get_token_gateway",
+      "_type": "request",
+      "name": "1.2 Get Token (via Gateway)",
+      "parentId": "fld_1_auth",
+      "method": "POST",
+      "url": "{{ _.gateway_url }}/api/partner/auth/token",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"clientId\": \"{{ _.client_id }}\",\n  \"clientSecret\": \"{{ _.client_secret }}\",\n  \"grantType\": \"client_credentials\"\n}"
+      },
+      "description": "Alternative: authenticate via the Partner Gateway (which proxies to Partner Service)"
+    },
+
+    {
+      "_id": "fld_2_reference",
+      "_type": "request_group",
+      "name": "2. Reference Data",
+      "parentId": "wrk_partner_api",
+      "description": "Fetch locations and vehicle groups (cached)"
+    },
+    {
+      "_id": "req_2_1_locations",
+      "_type": "request",
+      "name": "2.1 Get Locations",
+      "parentId": "fld_2_reference",
+      "method": "GET",
+      "url": "{{ _.gateway_url }}/api/partner/v1/locations",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
+      ],
+      "description": "Get all available pickup/dropoff locations.\nResponse cached for 1 hour.\n\nNote the `locationId` values — you'll need them for availability and quote requests."
+    },
+    {
+      "_id": "req_2_2_vehicle_groups",
+      "_type": "request",
+      "name": "2.2 Get Vehicle Groups",
+      "parentId": "fld_2_reference",
+      "method": "GET",
+      "url": "{{ _.gateway_url }}/api/partner/v1/vehicles/groups",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
+      ],
+      "description": "Get all available vehicle groups.\nResponse cached for 1 hour.\n\nNote the `code` values — you'll need them for quote requests."
+    },
+
+    {
+      "_id": "fld_3_search",
+      "_type": "request_group",
+      "name": "3. Search & Quote",
+      "parentId": "wrk_partner_api",
+      "description": "Search availability and get pricing quotes"
+    },
+    {
+      "_id": "req_3_1_availability",
+      "_type": "request",
+      "name": "3.1 Search Availability",
+      "parentId": "fld_3_search",
+      "method": "POST",
+      "url": "{{ _.gateway_url }}/api/partner/v1/availability",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"pickupLocationId\": 1,\n  \"dropoffLocationId\": 1,\n  \"pickupDateTime\": \"2026-04-01T10:00:00\",\n  \"dropoffDateTime\": \"2026-04-05T10:00:00\"\n}"
+      },
+      "description": "Search available vehicles for given dates and locations.\n\nUpdate `pickupLocationId` and `dropoffLocationId` with values from step 2.1.\nUpdate dates to future dates.\n\nResponse includes vehicle groups with pricing packages (BASIC/FULL based on partner quoteMode)."
+    },
+    {
+      "_id": "req_3_2_create_quote",
+      "_type": "request",
+      "name": "3.2 Create Quote",
+      "parentId": "fld_3_search",
+      "method": "POST",
+      "url": "{{ _.gateway_url }}/api/partner/v1/quote",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"pickupLocationId\": 1,\n  \"dropoffLocationId\": 1,\n  \"pickupDateTime\": \"2026-04-01T10:00:00\",\n  \"dropoffDateTime\": \"2026-04-05T10:00:00\",\n  \"vehicleGroup\": \"ECAR\"\n}"
+      },
+      "description": "Create a quote for a specific vehicle group.\n\nUpdate `vehicleGroup` with a code from step 2.2 or from availability response.\n\nSave the `quoteId` from response — needed for booking.\nSet environment variable: quote_id = response.quoteId"
+    },
+    {
+      "_id": "req_3_3_get_quote",
+      "_type": "request",
+      "name": "3.3 Get Quote",
+      "parentId": "fld_3_search",
+      "method": "GET",
+      "url": "{{ _.gateway_url }}/api/partner/v1/quote/{{ _.quote_id }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
+      ],
+      "description": "Retrieve a previously created quote by ID.\n\nQuotes have a `validUntil` expiry — check it before booking."
+    },
+
+    {
+      "_id": "fld_4_booking",
+      "_type": "request_group",
+      "name": "4. Booking",
+      "parentId": "wrk_partner_api",
+      "description": "Create, view, and cancel bookings"
+    },
+    {
+      "_id": "req_4_1_create_booking",
+      "_type": "request",
+      "name": "4.1 Create Booking (PAY_LATER)",
+      "parentId": "fld_4_booking",
+      "method": "POST",
+      "url": "{{ _.gateway_url }}/api/partner/v1/bookings",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"quoteId\": \"{{ _.quote_id }}\",\n  \"packageType\": \"BASIC\",\n  \"driver\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"+966501234567\",\n    \"passportNumber\": \"AB1234567\",\n    \"nationality\": \"US\"\n  }\n}"
+      },
+      "description": "Create a PAY_LATER booking with passport-only driver info.\n\nRequires a valid `quoteId` from step 3.2.\nSet `packageType` to BASIC or FULL.\n\nSave `bookingReference` from response.\nSet environment variable: booking_ref = response.bookingReference\n\nExpected status: CONFIRMED_PAY_LATER"
+    },
+    {
+      "_id": "req_4_2_get_booking",
+      "_type": "request",
+      "name": "4.2 Get Booking",
+      "parentId": "fld_4_booking",
+      "method": "GET",
+      "url": "{{ _.gateway_url }}/api/partner/v1/bookings/{{ _.booking_ref }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
+      ],
+      "description": "Retrieve booking details by reference number.\n\nUse the `bookingReference` from step 4.1."
+    },
+    {
+      "_id": "req_4_3_cancel_booking",
+      "_type": "request",
+      "name": "4.3 Cancel Booking",
+      "parentId": "fld_4_booking",
+      "method": "DELETE",
+      "url": "{{ _.gateway_url }}/api/partner/v1/bookings/{{ _.booking_ref }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
+      ],
+      "description": "Cancel a booking by reference number.\n\nOnly bookings in CONFIRMED_PAY_LATER or CONFIRMED status can be cancelled.\n\nResponse includes cancellationFee and refundAmount."
+    },
+
+    {
+      "_id": "fld_5_admin",
+      "_type": "request_group",
+      "name": "5. Admin (Partner Service)",
+      "parentId": "wrk_partner_api",
+      "description": "Partner management — internal/admin endpoints"
+    },
+    {
+      "_id": "req_5_1_list_partners",
+      "_type": "request",
+      "name": "5.1 List Partners",
+      "parentId": "fld_5_admin",
+      "method": "GET",
+      "url": "{{ _.partner_service_url }}/api/v1/partners",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "description": "List all partners. Optionally filter by status: ?status=ACTIVE"
+    },
+    {
+      "_id": "req_5_2_get_partner",
+      "_type": "request",
+      "name": "5.2 Get Partner (MEILI)",
+      "parentId": "fld_5_admin",
+      "method": "GET",
+      "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "description": "Get partner details by partner code."
+    },
+    {
+      "_id": "req_5_3_create_partner",
+      "_type": "request",
+      "name": "5.3 Create Partner",
+      "parentId": "fld_5_admin",
+      "method": "POST",
+      "url": "{{ _.partner_service_url }}/api/v1/partners",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"partnerCode\": \"KAYAK\",\n  \"name\": \"Kayak Travel\",\n  \"contactEmail\": \"api@kayak.com\",\n  \"commissionPercentage\": 8.00,\n  \"quoteMode\": \"BOTH\",\n  \"bookingMode\": \"PAY_LATER\",\n  \"webhookUrl\": \"https://kayak.com/webhooks/lumi\",\n  \"contractValidUntil\": \"2027-12-31\"\n}"
+      },
+      "description": "Create a new partner.\n\nResponse includes `apiKey` and `clientId` — save them! The API key is shown only once."
+    },
+    {
+      "_id": "req_5_4_update_partner",
+      "_type": "request",
+      "name": "5.4 Update Partner",
+      "parentId": "fld_5_admin",
+      "method": "PUT",
+      "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"rateLimit\": 200,\n  \"commissionPercentage\": 12.00\n}"
+      },
+      "description": "Update partner configuration."
+    },
+    {
+      "_id": "req_5_5_rotate_api_key",
+      "_type": "request",
+      "name": "5.5 Rotate API Key",
+      "parentId": "fld_5_admin",
+      "method": "POST",
+      "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI/rotate-api-key",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "description": "Rotate the API key for a partner.\n\nNew key shown only once in response — old key is invalidated immediately."
+    },
+    {
+      "_id": "req_5_6_suspend_partner",
+      "_type": "request",
+      "name": "5.6 Suspend Partner",
+      "parentId": "fld_5_admin",
+      "method": "PUT",
+      "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI/suspend",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "description": "Suspend a partner — blocks all API access."
+    },
+    {
+      "_id": "req_5_7_activate_partner",
+      "_type": "request",
+      "name": "5.7 Activate Partner",
+      "parentId": "fld_5_admin",
+      "method": "PUT",
+      "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI/activate",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "description": "Re-activate a suspended partner."
+    },
+
+    {
+      "_id": "fld_6_core_booking",
+      "_type": "request_group",
+      "name": "6. Core Booking Service (Internal)",
+      "parentId": "wrk_partner_api",
+      "description": "Direct calls to core-booking-service — for debugging only"
+    },
+    {
+      "_id": "req_6_1_create_partner_booking",
+      "_type": "request",
+      "name": "6.1 Create Partner Booking (Direct)",
+      "parentId": "fld_6_core_booking",
+      "method": "POST",
+      "url": "{{ _.booking_service_url }}/api/partner/bookings",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"partnerCode\": \"MEILI\",\n  \"quoteId\": \"Q-12345\",\n  \"packageType\": \"BASIC\",\n  \"pickupBranchId\": 1,\n  \"dropOffBranchId\": 1,\n  \"vehicleGroupId\": 10,\n  \"pickupDateTime\": \"2026-04-01T10:00:00\",\n  \"dropOffDateTime\": \"2026-04-05T10:00:00\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+966501234567\",\n  \"passportNumber\": \"AB1234567\",\n  \"nationality\": \"US\",\n  \"totalPrice\": 500.00,\n  \"rentalSum\": 400.00,\n  \"vat\": 60.00,\n  \"vatPercentage\": 15.00,\n  \"discount\": 0.00,\n  \"discountPercentage\": 0.00,\n  \"insuranceSum\": 0.00,\n  \"dropOffSum\": 40.00,\n  \"soldDays\": 4\n}"
+      },
+      "description": "Direct call to core-booking-service (bypasses gateway).\nFor debugging/testing only."
+    },
+    {
+      "_id": "req_6_2_get_partner_booking",
+      "_type": "request",
+      "name": "6.2 Get Partner Booking (Direct)",
+      "parentId": "fld_6_core_booking",
+      "method": "GET",
+      "url": "{{ _.booking_service_url }}/api/partner/bookings/PB_XXXXXXXXXXXXXXXX",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "description": "Get booking directly from core-booking-service.\nReplace PB_XXX with actual referenceNo."
+    },
+    {
+      "_id": "req_6_3_cancel_partner_booking",
+      "_type": "request",
+      "name": "6.3 Cancel Partner Booking (Direct)",
+      "parentId": "fld_6_core_booking",
+      "method": "DELETE",
+      "url": "{{ _.booking_service_url }}/api/partner/bookings/PB_XXXXXXXXXXXXXXXX",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "description": "Cancel booking directly from core-booking-service.\nReplace PB_XXX with actual referenceNo."
+    },
+    {
+      "_id": "req_6_4_list_partner_bookings",
+      "_type": "request",
+      "name": "6.4 List Partner Bookings (Direct)",
+      "parentId": "fld_6_core_booking",
+      "method": "GET",
+      "url": "{{ _.booking_service_url }}/api/partner/bookings?partnerCode=MEILI",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "description": "List all bookings for a partner directly from core-booking-service."
+    }
+  ]
+}

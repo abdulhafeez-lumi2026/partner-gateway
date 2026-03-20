@@ -21,8 +21,9 @@
         "gateway_url": "http://localhost:9998",
         "partner_service_url": "http://localhost:9997",
         "booking_service_url": "http://localhost:9996",
-        "client_id": "meili_prod_client",
-        "client_secret": "meili_secret_2026",
+        "admin_token": "ADMIN_20032026",
+        "client_id": "",
+        "client_secret": "",
         "access_token": "",
         "booking_ref": "",
         "quote_id": ""
@@ -241,7 +242,8 @@
       "method": "GET",
       "url": "{{ _.partner_service_url }}/api/v1/partners",
       "headers": [
-        { "name": "Content-Type", "value": "application/json" }
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Admin-Token", "value": "{{ _.admin_token }}" }
       ],
       "description": "List all partners. Optionally filter by status: ?status=ACTIVE"
     },
@@ -253,25 +255,27 @@
       "method": "GET",
       "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI",
       "headers": [
-        { "name": "Content-Type", "value": "application/json" }
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Admin-Token", "value": "{{ _.admin_token }}" }
       ],
       "description": "Get partner details by partner code."
     },
     {
       "_id": "req_5_3_create_partner",
       "_type": "request",
-      "name": "5.3 Create Partner",
+      "name": "5.3 Create Partner (MEILI)",
       "parentId": "fld_5_admin",
       "method": "POST",
       "url": "{{ _.partner_service_url }}/api/v1/partners",
       "headers": [
-        { "name": "Content-Type", "value": "application/json" }
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Admin-Token", "value": "{{ _.admin_token }}" }
       ],
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"partnerCode\": \"KAYAK\",\n  \"name\": \"Kayak Travel\",\n  \"contactEmail\": \"api@kayak.com\",\n  \"commissionPercentage\": 8.00,\n  \"quoteMode\": \"BOTH\",\n  \"bookingMode\": \"PAY_LATER\",\n  \"webhookUrl\": \"https://kayak.com/webhooks/lumi\",\n  \"contractValidUntil\": \"2027-12-31\"\n}"
+        "text": "{\n  \"partnerCode\": \"MEILI\",\n  \"name\": \"Meili Travel Technology\",\n  \"contactEmail\": \"tech@meili.com\",\n  \"commissionPercentage\": 10.00,\n  \"quoteMode\": \"BOTH\",\n  \"bookingMode\": \"PAY_LATER\",\n  \"contractValidUntil\": \"2027-12-31\"\n}"
       },
-      "description": "Create a new partner.\n\nResponse includes `apiKey` and `clientId` — save them! The API key is shown only once."
+      "description": "Create Meili as a partner.\n\nResponse includes `clientId`, `clientSecret`, and `apiKey` — SAVE THEM!\nAll three are shown only once (only hashes stored in DB).\n\nAfter creation, copy clientId → client_id env var, clientSecret → client_secret env var.\nThen use step 1.1 to get a JWT token."
     },
     {
       "_id": "req_5_4_update_partner",
@@ -281,7 +285,8 @@
       "method": "PUT",
       "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI",
       "headers": [
-        { "name": "Content-Type", "value": "application/json" }
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Admin-Token", "value": "{{ _.admin_token }}" }
       ],
       "body": {
         "mimeType": "application/json",
@@ -297,7 +302,8 @@
       "method": "POST",
       "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI/rotate-api-key",
       "headers": [
-        { "name": "Content-Type", "value": "application/json" }
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Admin-Token", "value": "{{ _.admin_token }}" }
       ],
       "description": "Rotate the API key for a partner.\n\nNew key shown only once in response — old key is invalidated immediately."
     },
@@ -309,7 +315,8 @@
       "method": "PUT",
       "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI/suspend",
       "headers": [
-        { "name": "Content-Type", "value": "application/json" }
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Admin-Token", "value": "{{ _.admin_token }}" }
       ],
       "description": "Suspend a partner — blocks all API access."
     },
@@ -321,7 +328,8 @@
       "method": "PUT",
       "url": "{{ _.partner_service_url }}/api/v1/partners/MEILI/activate",
       "headers": [
-        { "name": "Content-Type", "value": "application/json" }
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Admin-Token", "value": "{{ _.admin_token }}" }
       ],
       "description": "Re-activate a suspended partner."
     },

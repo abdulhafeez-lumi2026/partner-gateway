@@ -36,10 +36,4 @@ public class BookingController {
         log.info("Cancel booking: bookingRef={}", bookingRef);
         return ResponseEntity.ok(bookingService.cancelBooking(bookingRef));
     }
-
-    @PostMapping("/{bookingRef}/confirm")
-    public ResponseEntity<BookingResponse> confirmBooking(@PathVariable String bookingRef) {
-        log.info("Confirm booking: bookingRef={}", bookingRef);
-        return ResponseEntity.ok(bookingService.confirmBooking(bookingRef));
-    }
 }

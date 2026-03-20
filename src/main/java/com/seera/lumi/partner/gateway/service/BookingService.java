@@ -103,15 +103,6 @@ public class BookingService {
         }
     }
 
-    /**
-     * Confirms a booking by reference number.
-     * Not yet implemented -- requires payment integration.
-     */
-    public BookingResponse confirmBooking(String bookingRef) {
-        throw new PartnerException("NOT_IMPLEMENTED",
-                "Booking confirmation is not yet available. Requires payment integration.", 501);
-    }
-
     private BookingResponse mapToBookingResponse(CoreBookingResponse core) {
         DriverInfo driver = DriverInfo.builder()
                 .firstName(core.getDriverFirstName())

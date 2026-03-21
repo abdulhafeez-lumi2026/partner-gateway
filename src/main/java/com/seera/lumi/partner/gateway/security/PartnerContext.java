@@ -41,11 +41,32 @@ public final class PartnerContext {
         return (String) getClaims().get("bookingMode");
     }
 
+    public static String getDebtorCode() {
+        return (String) getClaims().get("debtorCode");
+    }
+
     @SuppressWarnings("unchecked")
     public static List<String> getAllowedBranches() {
         Object val = getClaims().get("allowedBranches");
         if (val instanceof List) {
             return (List<String>) val;
+        }
+        // Handle comma-separated string from JWT
+        if (val instanceof String str && !str.isBlank()) {
+            return List.of(str.split("\\s*,\\s*"));
+        }
+        return Collections.emptyList();
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<String> getAllowedVehicleGroups() {
+        Object val = getClaims().get("allowedVehicleGroups");
+        if (val instanceof List) {
+            return (List<String>) val;
+        }
+        // Handle comma-separated string from JWT
+        if (val instanceof String str && !str.isBlank()) {
+            return List.of(str.split("\\s*,\\s*"));
         }
         return Collections.emptyList();
     }

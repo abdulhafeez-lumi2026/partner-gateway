@@ -22,6 +22,6 @@ public class VehicleController {
     @GetMapping("/groups")
     public ResponseEntity<List<VehicleGroupResponse>> getVehicleGroups() {
         log.info("Get all vehicle groups");
-        return ResponseEntity.ok(vehicleService.getVehicleGroups());
+        return ResponseEntity.ok(vehicleService.getVehicleGroupsForPartner());
     }
 }

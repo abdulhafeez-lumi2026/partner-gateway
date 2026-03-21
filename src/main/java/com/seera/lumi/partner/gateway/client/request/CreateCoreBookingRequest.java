@@ -15,6 +15,7 @@ public class CreateCoreBookingRequest {
     private String partnerCode;
     private String quoteId;
     private String packageType;
+    private String bookingMode;
     private Long pickupBranchId;
     private Long dropOffBranchId;
     private LocalDateTime pickupDateTime;

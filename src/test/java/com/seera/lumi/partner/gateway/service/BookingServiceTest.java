@@ -40,7 +40,7 @@ class BookingServiceTest {
     @BeforeEach
     void setUp() {
         TestingAuthenticationToken auth = new TestingAuthenticationToken("user", null);
-        auth.setDetails(Map.of("partnerCode", "MEILI"));
+        auth.setDetails(Map.of("partnerCode", "MEILI", "bookingMode", "PAY_LATER"));
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 

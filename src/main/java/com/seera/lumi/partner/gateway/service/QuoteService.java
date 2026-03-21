@@ -7,6 +7,7 @@ import com.seera.lumi.partner.gateway.controller.request.QuoteRequest;
 import com.seera.lumi.partner.gateway.controller.response.PricingPackage;
 import com.seera.lumi.partner.gateway.controller.response.QuoteResponse;
 import com.seera.lumi.partner.gateway.exception.PartnerException;
+import com.seera.lumi.partner.gateway.security.PartnerContext;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,8 +36,14 @@ public class QuoteService {
 
     public QuoteResponse createQuote(QuoteRequest request) {
         try {
-            log.info("Creating quote: vehicleGroup={}, pickup={}, dropoff={}",
-                    request.getVehicleGroup(), request.getPickupLocationId(), request.getDropoffLocationId());
+            // Validate branches and vehicle group against partner's allowed list
+            validateAllowedBranch(request.getPickupLocationId(), "pickup");
+            validateAllowedBranch(request.getDropoffLocationId(), "dropoff");
+            validateAllowedVehicleGroup(request.getVehicleGroup());
+
+            log.info("Creating quote: vehicleGroup={}, pickup={}, dropoff={}, accountNo={}",
+                    request.getVehicleGroup(), request.getPickupLocationId(),
+                    request.getDropoffLocationId(), PartnerContext.getDebtorCode());
 
             CreateQuoteRequest quoteRequest = CreateQuoteRequest.builder()
                     .pickupBranchId(request.getPickupLocationId())
@@ -44,6 +51,7 @@ public class QuoteService {
                     .pickupDateTime(request.getPickupDateTime().toInstant(ZoneOffset.UTC).toEpochMilli())
                     .dropOffDateTime(request.getDropoffDateTime().toInstant(ZoneOffset.UTC).toEpochMilli())
                     .vehicleGroupCode(request.getVehicleGroup())
+                    .accountNo(PartnerContext.getDebtorCode())
                     .build();
 
             VehicleQuoteResponse quoteResult = pricingClient.createQuote(quoteRequest);
@@ -192,6 +200,22 @@ public class QuoteService {
         } catch (NumberFormatException e) {
             log.warn("Failed to parse int value: {}", value);
             return 0;
+        }
+    }
+
+    private void validateAllowedBranch(Long branchId, String label) {
+        List<String> allowed = PartnerContext.getAllowedBranches();
+        if (!allowed.isEmpty() && !allowed.contains(String.valueOf(branchId))) {
+            throw new PartnerException("BRANCH_NOT_ALLOWED",
+                    label + " branch " + branchId + " is not in your allowed branches", 403);
+        }
+    }
+
+    private void validateAllowedVehicleGroup(String vehicleGroup) {
+        List<String> allowed = PartnerContext.getAllowedVehicleGroups();
+        if (!allowed.isEmpty() && !allowed.contains(vehicleGroup)) {
+            throw new PartnerException("VEHICLE_GROUP_NOT_ALLOWED",
+                    "Vehicle group " + vehicleGroup + " is not in your allowed vehicle groups", 403);
         }
     }
 }

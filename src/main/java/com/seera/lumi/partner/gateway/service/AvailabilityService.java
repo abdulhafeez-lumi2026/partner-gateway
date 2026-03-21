@@ -7,6 +7,7 @@ import com.seera.lumi.partner.gateway.controller.request.AvailabilityRequest;
 import com.seera.lumi.partner.gateway.controller.response.PricingPackage;
 import com.seera.lumi.partner.gateway.controller.response.VehicleAvailabilityResponse;
 import com.seera.lumi.partner.gateway.exception.PartnerException;
+import com.seera.lumi.partner.gateway.security.PartnerContext;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,15 +28,21 @@ public class AvailabilityService {
 
     public List<VehicleAvailabilityResponse> searchAvailability(AvailabilityRequest request) {
         try {
-            log.info("Searching availability: pickup={}, dropoff={}, from={}, to={}",
+            // Validate branches against partner's allowed list
+            validateAllowedBranch(request.getPickupLocationId(), "pickup");
+            validateAllowedBranch(request.getDropoffLocationId(), "dropoff");
+
+            log.info("Searching availability: pickup={}, dropoff={}, from={}, to={}, accountNo={}",
                     request.getPickupLocationId(), request.getDropoffLocationId(),
-                    request.getPickupDateTime(), request.getDropoffDateTime());
+                    request.getPickupDateTime(), request.getDropoffDateTime(),
+                    PartnerContext.getDebtorCode());
 
             SearchOffersRequest offersRequest = SearchOffersRequest.builder()
                     .pickupBranchId(request.getPickupLocationId())
                     .dropOffBranchId(request.getDropoffLocationId())
                     .pickupDate(request.getPickupDateTime())
                     .dropOffDate(request.getDropoffDateTime())
+                    .accountNo(PartnerContext.getDebtorCode())
                     .build();
 
             RentalOffersResponse offersResponse = pricingClient.searchOffers(offersRequest);
@@ -44,8 +51,13 @@ public class AvailabilityService {
                 return List.of();
             }
 
+            // Filter by allowed vehicle groups
+            List<String> allowedGroups = PartnerContext.getAllowedVehicleGroups();
+
             return offersResponse.getData().stream()
                     .filter(RentalOffersResponse.VehicleOfferData::isAvailable)
+                    .filter(offer -> allowedGroups.isEmpty()
+                            || allowedGroups.contains(String.valueOf(offer.getGroupId())))
                     .map(this::mapToAvailabilityResponse)
                     .collect(Collectors.toList());
         } catch (FeignException e) {
@@ -159,6 +171,14 @@ public class AvailabilityService {
         } catch (NumberFormatException e) {
             log.warn("Failed to parse int value: {}", value);
             return 0;
+        }
+    }
+
+    private void validateAllowedBranch(Long branchId, String label) {
+        List<String> allowed = PartnerContext.getAllowedBranches();
+        if (!allowed.isEmpty() && !allowed.contains(String.valueOf(branchId))) {
+            throw new PartnerException("BRANCH_NOT_ALLOWED",
+                    label + " branch " + branchId + " is not in your allowed branches", 403);
         }
     }
 }

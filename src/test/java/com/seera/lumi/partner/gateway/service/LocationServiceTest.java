@@ -42,7 +42,7 @@ class LocationServiceTest {
 
         when(branchClient.getBranches()).thenReturn(response);
 
-        List<LocationResponse> result = locationService.getLocations();
+        List<LocationResponse> result = locationService.getAllLocations();
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getLocationId()).isEqualTo(1L);
@@ -58,7 +58,7 @@ class LocationServiceTest {
     void getLocations_nullResponse_returnsEmpty() {
         when(branchClient.getBranches()).thenReturn(null);
 
-        List<LocationResponse> result = locationService.getLocations();
+        List<LocationResponse> result = locationService.getAllLocations();
 
         assertThat(result).isEmpty();
     }
@@ -69,7 +69,7 @@ class LocationServiceTest {
         when(feignEx.status()).thenReturn(500);
         when(branchClient.getBranches()).thenThrow(feignEx);
 
-        assertThatThrownBy(() -> locationService.getLocations())
+        assertThatThrownBy(() -> locationService.getAllLocations())
                 .isInstanceOf(PartnerException.class)
                 .satisfies(ex -> {
                     PartnerException pe = (PartnerException) ex;

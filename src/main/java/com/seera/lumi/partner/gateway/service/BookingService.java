@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -36,6 +37,7 @@ public class BookingService {
                     .partnerCode(partnerCode)
                     .quoteId(request.getQuoteId())
                     .packageType(request.getPackageType())
+                    .bookingMode(PartnerContext.getBookingMode())
                     .firstName(request.getDriver().getFirstName())
                     .lastName(request.getDriver().getLastName())
                     .email(request.getDriver().getEmail())

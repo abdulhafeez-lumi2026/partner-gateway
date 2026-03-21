@@ -41,7 +41,7 @@ class VehicleServiceTest {
 
         when(fleetClient.getVehicleGroups(0, 1000, true)).thenReturn(response);
 
-        List<VehicleGroupResponse> result = vehicleService.getVehicleGroups();
+        List<VehicleGroupResponse> result = vehicleService.getAllVehicleGroups();
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getCode()).isEqualTo("ECAR");
@@ -58,7 +58,7 @@ class VehicleServiceTest {
     void getVehicleGroups_nullResponse_returnsEmpty() {
         when(fleetClient.getVehicleGroups(0, 1000, true)).thenReturn(null);
 
-        List<VehicleGroupResponse> result = vehicleService.getVehicleGroups();
+        List<VehicleGroupResponse> result = vehicleService.getAllVehicleGroups();
 
         assertThat(result).isEmpty();
     }
@@ -69,7 +69,7 @@ class VehicleServiceTest {
         when(feignEx.status()).thenReturn(500);
         when(fleetClient.getVehicleGroups(0, 1000, true)).thenThrow(feignEx);
 
-        assertThatThrownBy(() -> vehicleService.getVehicleGroups())
+        assertThatThrownBy(() -> vehicleService.getAllVehicleGroups())
                 .isInstanceOf(PartnerException.class)
                 .satisfies(ex -> {
                     PartnerException pe = (PartnerException) ex;

@@ -109,7 +109,7 @@
       "headers": [
         { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
       ],
-      "description": "Get all available pickup/dropoff locations.\nResponse cached for 1 hour.\n\nNote the `locationId` values — you'll need them for availability and quote requests."
+      "description": "Get available pickup/dropoff locations.\nFiltered by partner's `allowedBranches` config (if set).\nResponse cached for 1 hour.\n\nNote the `locationId` values — you'll need them for availability and quote requests."
     },
     {
       "_id": "req_2_2_vehicle_groups",
@@ -121,7 +121,7 @@
       "headers": [
         { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
       ],
-      "description": "Get all available vehicle groups.\nResponse cached for 1 hour.\n\nNote the `code` values — you'll need them for quote requests."
+      "description": "Get available vehicle groups.\nFiltered by partner's `allowedVehicleGroups` config (if set).\nResponse cached for 1 hour.\n\nNote the `code` values — you'll need them for quote requests."
     },
 
     {
@@ -146,7 +146,7 @@
         "mimeType": "application/json",
         "text": "{\n  \"pickupLocationId\": 1,\n  \"dropoffLocationId\": 1,\n  \"pickupDateTime\": \"2026-04-01T10:00:00\",\n  \"dropoffDateTime\": \"2026-04-05T10:00:00\"\n}"
       },
-      "description": "Search available vehicles for given dates and locations.\n\nUpdate `pickupLocationId` and `dropoffLocationId` with values from step 2.1.\nUpdate dates to future dates.\n\nResponse includes vehicle groups with pricing packages (BASIC/FULL based on partner quoteMode)."
+      "description": "Search available vehicles for given dates and locations.\nPricing uses partner's debtor tariff card (via accountNo).\nResults filtered by partner's allowedBranches and allowedVehicleGroups.\n\nUpdate `pickupLocationId` and `dropoffLocationId` with values from step 2.1.\nUpdate dates to future dates.\n\nResponse includes vehicle groups with pricing packages (BASIC/FULL based on partner quoteMode)."
     },
     {
       "_id": "req_3_2_create_quote",
@@ -163,7 +163,7 @@
         "mimeType": "application/json",
         "text": "{\n  \"pickupLocationId\": 1,\n  \"dropoffLocationId\": 1,\n  \"pickupDateTime\": \"2026-04-01T10:00:00\",\n  \"dropoffDateTime\": \"2026-04-05T10:00:00\",\n  \"vehicleGroup\": \"ECAR\"\n}"
       },
-      "description": "Create a quote for a specific vehicle group.\n\nUpdate `vehicleGroup` with a code from step 2.2 or from availability response.\n\nSave the `quoteId` from response — needed for booking.\nSet environment variable: quote_id = response.quoteId"
+      "description": "Create a quote for a specific vehicle group.\nPricing uses partner's debtor tariff card (via accountNo).\nBranch and vehicle group validated against partner's allowed list.\n\nUpdate `vehicleGroup` with a code from step 2.2 or from availability response.\n\nSave the `quoteId` from response — needed for booking.\nSet environment variable: quote_id = response.quoteId"
     },
     {
       "_id": "req_3_3_get_quote",
@@ -200,7 +200,7 @@
         "mimeType": "application/json",
         "text": "{\n  \"quoteId\": \"{{ _.quote_id }}\",\n  \"packageType\": \"BASIC\",\n  \"driver\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"+966501234567\",\n    \"passportNumber\": \"AB1234567\",\n    \"nationality\": \"US\"\n  }\n}"
       },
-      "description": "Create a PAY_LATER booking with passport-only driver info.\n\nRequires a valid `quoteId` from step 3.2.\nSet `packageType` to BASIC or FULL.\n\nSave `bookingReference` from response.\nSet environment variable: booking_ref = response.bookingReference\n\nExpected status: CONFIRMED_PAY_LATER"
+      "description": "Create a booking with passport-only driver info.\nBooking mode (PAY_LATER/PAY_NOW) comes from partner config.\nNo customer record created — driver info stored in booking_partner table.\n\nRequires a valid `quoteId` from step 3.2.\nSet `packageType` to BASIC or FULL.\n\nSave `bookingReference` from response.\nSet environment variable: booking_ref = response.bookingReference\n\nExpected status: CREATED"
     },
     {
       "_id": "req_4_2_get_booking",
@@ -224,7 +224,7 @@
       "headers": [
         { "name": "Authorization", "value": "Bearer {{ _.access_token }}" }
       ],
-      "description": "Cancel a booking by reference number.\n\nOnly bookings in CONFIRMED_PAY_LATER or CONFIRMED status can be cancelled.\n\nResponse includes cancellationFee and refundAmount."
+      "description": "Cancel a booking by reference number.\n\nOnly bookings in CREATED or UPCOMING status can be cancelled.\n\nResponse includes cancellationFee and refundAmount."
     },
 
     {
@@ -273,9 +273,9 @@
       ],
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"partnerCode\": \"MEILI\",\n  \"name\": \"Meili Travel Technology\",\n  \"contactEmail\": \"tech@meili.com\",\n  \"commissionPercentage\": 10.00,\n  \"quoteMode\": \"BOTH\",\n  \"bookingMode\": \"PAY_LATER\",\n  \"contractValidUntil\": \"2027-12-31\"\n}"
+        "text": "{\n  \"partnerCode\": \"MEILI\",\n  \"name\": \"Meili Travel Technology\",\n  \"contactEmail\": \"tech@meili.com\",\n  \"debtorCode\": \"DEB-MEILI-001\",\n  \"commissionPercentage\": 10.00,\n  \"quoteMode\": \"BOTH\",\n  \"bookingMode\": \"PAY_LATER\",\n  \"allowedBranches\": \"1,2,3\",\n  \"allowedVehicleGroups\": \"ECAR,CCAR,SCAR\",\n  \"contractValidUntil\": \"2027-12-31\"\n}"
       },
-      "description": "Create Meili as a partner.\n\nResponse includes `clientId`, `clientSecret`, and `apiKey` — SAVE THEM!\nAll three are shown only once (only hashes stored in DB).\n\nAfter creation, copy clientId → client_id env var, clientSecret → client_secret env var.\nThen use step 1.1 to get a JWT token."
+      "description": "Create Meili as a partner.\n\n`debtorCode` is mandatory — must match an existing debtor/B2B account in the pricing service.\n`allowedBranches` and `allowedVehicleGroups` restrict what the partner can see/book.\n\nResponse includes `clientId`, `clientSecret`, and `apiKey` — SAVE THEM!\nAll three are shown only once (only hashes stored in DB).\n\nAfter creation, copy clientId → client_id env var, clientSecret → client_secret env var.\nThen use step 1.1 to get a JWT token."
     },
     {
       "_id": "req_5_4_update_partner",
@@ -353,7 +353,7 @@
       ],
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"partnerCode\": \"MEILI\",\n  \"quoteId\": \"Q-12345\",\n  \"packageType\": \"BASIC\",\n  \"pickupBranchId\": 1,\n  \"dropOffBranchId\": 1,\n  \"vehicleGroupId\": 10,\n  \"pickupDateTime\": \"2026-04-01T10:00:00\",\n  \"dropOffDateTime\": \"2026-04-05T10:00:00\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+966501234567\",\n  \"passportNumber\": \"AB1234567\",\n  \"nationality\": \"US\",\n  \"totalPrice\": 500.00,\n  \"rentalSum\": 400.00,\n  \"vat\": 60.00,\n  \"vatPercentage\": 15.00,\n  \"discount\": 0.00,\n  \"discountPercentage\": 0.00,\n  \"insuranceSum\": 0.00,\n  \"dropOffSum\": 40.00,\n  \"soldDays\": 4\n}"
+        "text": "{\n  \"partnerCode\": \"MEILI\",\n  \"quoteId\": \"Q-12345\",\n  \"packageType\": \"BASIC\",\n  \"bookingMode\": \"PAY_LATER\",\n  \"pickupBranchId\": 1,\n  \"dropOffBranchId\": 1,\n  \"vehicleGroupId\": 10,\n  \"pickupDateTime\": \"2026-04-01T10:00:00\",\n  \"dropOffDateTime\": \"2026-04-05T10:00:00\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+966501234567\",\n  \"passportNumber\": \"AB1234567\",\n  \"nationality\": \"US\",\n  \"totalPrice\": 500.00,\n  \"rentalSum\": 400.00,\n  \"vat\": 60.00,\n  \"vatPercentage\": 15.00,\n  \"discount\": 0.00,\n  \"discountPercentage\": 0.00,\n  \"insuranceSum\": 0.00,\n  \"dropOffSum\": 40.00,\n  \"soldDays\": 4\n}"
       },
       "description": "Direct call to core-booking-service (bypasses gateway).\nFor debugging/testing only."
     },

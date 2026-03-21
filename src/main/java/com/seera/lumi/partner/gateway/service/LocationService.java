@@ -5,6 +5,7 @@ import com.seera.lumi.partner.gateway.client.response.BranchDetailResponse;
 import com.seera.lumi.partner.gateway.client.response.BranchListResponse;
 import com.seera.lumi.partner.gateway.controller.response.LocationResponse;
 import com.seera.lumi.partner.gateway.exception.PartnerException;
+import com.seera.lumi.partner.gateway.security.PartnerContext;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +23,23 @@ public class LocationService {
 
     private final BranchClient branchClient;
 
+    /**
+     * Returns locations filtered by the partner's allowed branches.
+     * If no restriction is configured, all locations are returned.
+     */
+    public List<LocationResponse> getLocationsForPartner() {
+        List<LocationResponse> all = getAllLocations();
+        List<String> allowed = PartnerContext.getAllowedBranches();
+        if (allowed.isEmpty()) {
+            return all;
+        }
+        return all.stream()
+                .filter(loc -> allowed.contains(String.valueOf(loc.getLocationId())))
+                .collect(Collectors.toList());
+    }
+
     @Cacheable(value = "locations")
-    public List<LocationResponse> getLocations() {
+    public List<LocationResponse> getAllLocations() {
         try {
             log.info("Fetching locations from branch service");
             BranchListResponse branchList = branchClient.getBranches();

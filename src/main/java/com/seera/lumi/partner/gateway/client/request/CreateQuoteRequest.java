@@ -21,4 +21,5 @@ public class CreateQuoteRequest {
     private Long insuranceId;
     private String promoCode;
     private List<Long> addOnIds;
+    private String accountNo;
 }

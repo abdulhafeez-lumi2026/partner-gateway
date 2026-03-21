@@ -22,6 +22,6 @@ public class LocationController {
     @GetMapping
     public ResponseEntity<List<LocationResponse>> getLocations() {
         log.info("Get all locations");
-        return ResponseEntity.ok(locationService.getLocations());
+        return ResponseEntity.ok(locationService.getLocationsForPartner());
     }
 }

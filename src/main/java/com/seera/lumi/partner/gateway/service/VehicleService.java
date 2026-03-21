@@ -4,6 +4,7 @@ import com.seera.lumi.partner.gateway.client.FleetClient;
 import com.seera.lumi.partner.gateway.client.response.VehicleGroupPageResponse;
 import com.seera.lumi.partner.gateway.controller.response.VehicleGroupResponse;
 import com.seera.lumi.partner.gateway.exception.PartnerException;
+import com.seera.lumi.partner.gateway.security.PartnerContext;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,8 +22,23 @@ public class VehicleService {
 
     private final FleetClient fleetClient;
 
+    /**
+     * Returns vehicle groups filtered by the partner's allowed list.
+     * If no restriction is configured, all groups are returned.
+     */
+    public List<VehicleGroupResponse> getVehicleGroupsForPartner() {
+        List<VehicleGroupResponse> all = getAllVehicleGroups();
+        List<String> allowed = PartnerContext.getAllowedVehicleGroups();
+        if (allowed.isEmpty()) {
+            return all;
+        }
+        return all.stream()
+                .filter(vg -> allowed.contains(vg.getCode()))
+                .collect(Collectors.toList());
+    }
+
     @Cacheable(value = "vehicleGroups")
-    public List<VehicleGroupResponse> getVehicleGroups() {
+    public List<VehicleGroupResponse> getAllVehicleGroups() {
         try {
             log.info("Fetching vehicle groups from fleet service");
             VehicleGroupPageResponse page = fleetClient.getVehicleGroups(0, 1000, true);

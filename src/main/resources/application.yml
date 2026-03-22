@@ -35,18 +35,18 @@ feign:
   okhttp:
     enabled: true
 
-# Service URLs
+# Service URLs — defaults point to preprod for downstream, local for partner services
 api:
-  pricing:
-    baseUrl: ${PRICING_SERVICE_URL:http://localhost:8188}
   booking:
-    baseUrl: ${BOOKING_SERVICE_URL:http://localhost:8086}
+    baseUrl: ${BOOKING_SERVICE_URL:https://api-preprod.lumirental.com/booking-service}
   driver:
-    baseUrl: ${DRIVER_SERVICE_URL:http://localhost:8087}
+    baseUrl: ${DRIVER_SERVICE_URL:https://api-preprod.lumirental.com/driver-service}
   branch:
-    baseUrl: ${BRANCH_SERVICE_URL:http://localhost:8085}
+    baseUrl: ${BRANCH_SERVICE_URL:https://api-preprod.lumirental.com/branch-service}
   fleet:
-    baseUrl: ${FLEET_SERVICE_URL:http://localhost:8099}
+    baseUrl: ${FLEET_SERVICE_URL:https://api-preprod.lumirental.com/core-fleet-service}
+  fleet-legacy:
+    baseUrl: ${FLEET_LEGACY_SERVICE_URL:https://api-preprod.lumirental.com/fleet-service}
   partner:
     baseUrl: ${PARTNER_SERVICE_URL:http://localhost:9997}
   core-booking:

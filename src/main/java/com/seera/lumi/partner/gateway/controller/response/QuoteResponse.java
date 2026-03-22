@@ -1,5 +1,6 @@
 package com.seera.lumi.partner.gateway.controller.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,4 +23,7 @@ public class QuoteResponse {
     private LocalDateTime dropoffDateTime;
     private String currency;
     private LocalDateTime validUntil;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String promoCode;
 }

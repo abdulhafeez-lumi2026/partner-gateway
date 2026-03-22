@@ -59,6 +59,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 claimsMap.put("bookingMode", claims.get("bookingMode"));
                 claimsMap.put("allowedBranches", claims.get("allowedBranches"));
                 claimsMap.put("allowedVehicleGroups", claims.get("allowedVehicleGroups"));
+                claimsMap.put("debtorCode", claims.get("debtorCode"));
                 claimsMap.put("rateLimit", claims.get("rateLimit"));
 
                 UsernamePasswordAuthenticationToken authentication =

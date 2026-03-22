@@ -39,6 +39,13 @@ public class VehicleService {
 
     @Cacheable(value = "vehicleGroups")
     public List<VehicleGroupResponse> getAllVehicleGroups() {
+        return getAllVehicleGroupsRaw().stream()
+                .map(this::mapToVehicleGroupResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Cacheable(value = "vehicleGroupsRaw")
+    public List<VehicleGroupPageResponse.VehicleGroupData> getAllVehicleGroupsRaw() {
         try {
             log.info("Fetching vehicle groups from fleet service");
             VehicleGroupPageResponse page = fleetClient.getVehicleGroups(0, 1000, true);
@@ -47,9 +54,7 @@ public class VehicleService {
                 return List.of();
             }
 
-            return page.getContent().stream()
-                    .map(this::mapToVehicleGroupResponse)
-                    .collect(Collectors.toList());
+            return page.getContent();
         } catch (FeignException e) {
             log.error("Failed to fetch vehicle groups from fleet service: status={}, message={}",
                     e.status(), e.getMessage(), e);

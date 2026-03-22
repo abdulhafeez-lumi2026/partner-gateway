@@ -16,6 +16,7 @@ import java.util.List;
 public class VehicleAvailabilityResponse {
     private String vehicleGroup;
     private String vehicleGroupName;
+    private String category;
     private String imageUrl;
     private Integer seats;
     private Integer doors;

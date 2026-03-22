@@ -26,21 +26,24 @@ public class VehicleGroupPageResponse {
         private String displayName;
         private Map<String, String> description;
         private Integer faceModelId;
-        private FaceModelResponse faceModelResponse;
+        private VehicleModelBasicResponse vehicleModelBasicResponse;
         private String thumbnail;
         private Boolean enabled;
-        private List<VehicleModelData> models;
+        private List<VehicleModelBasicResponse> models;
     }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class FaceModelResponse {
+    public static class VehicleModelBasicResponse {
         private Integer id;
         private Map<String, String> name;
         private VehicleMakeResponse make;
-        private String modelYear;
-        private Map<String, Object> specification;
+        private String materialId;
+        private List<ModelImageData> images;
+        private List<ModelFeatureData> features;
+        private VehicleClassResponse vehicleClassResponse;
+        private Integer modelYear;
         private Boolean enabled;
     }
 
@@ -50,19 +53,42 @@ public class VehicleGroupPageResponse {
     public static class VehicleMakeResponse {
         private Integer id;
         private Map<String, String> name;
-        private String logo;
+        private Boolean enabled;
     }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class VehicleModelData {
+    public static class VehicleClassResponse {
         private Integer id;
         private Map<String, String> name;
-        private VehicleMakeResponse make;
-        private List<ModelImageData> images;
-        private Integer modelYear;
         private Boolean enabled;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ModelFeatureData {
+        private FeatureInfo feature;
+        private List<FeatureValueInfo> featureValue;
+        private Boolean primary;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FeatureInfo {
+        private Integer id;
+        private String imageUrl;
+        private Map<String, String> name;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FeatureValueInfo {
+        private Integer id;
+        private Map<String, String> name;
     }
 
     @Data

@@ -82,7 +82,6 @@ public class AvailabilityService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private VehicleAvailabilityResponse enrichWithVehicleMetadata(
             VehicleAvailabilityResponse response,
             Map<Integer, VehicleGroupPageResponse.VehicleGroupData> vehicleGroupMap) {
@@ -99,54 +98,78 @@ public class AvailabilityService {
             return response;
         }
 
-        response.setVehicleGroupName(vg.getDisplayName());
+        // Set image from thumbnail or first model image
         response.setImageUrl(vg.getThumbnail());
 
-        // Extract specs from face model's specification map
-        VehicleGroupPageResponse.FaceModelResponse faceModel = vg.getFaceModelResponse();
-        if (faceModel != null && faceModel.getSpecification() != null) {
-            Map<String, Object> spec = faceModel.getSpecification();
-            log.info("Group {} specs: {}", groupId, spec);
-
-            response.setSeats(toInteger(spec.get("seatingCapacity")));
-            response.setDoors(toInteger(spec.get("doors")));
-            response.setTransmission(toString(spec.get("transmission")));
-            response.setFuelType(toString(spec.get("fuelType")));
-
-            // Total bags = big + medium + small
-            int bags = intOrZero(spec.get("luggageCountBig"))
-                    + intOrZero(spec.get("luggageCountMedium"))
-                    + intOrZero(spec.get("luggageCountSmall"));
-            if (bags > 0) {
-                response.setBags(bags);
+        // Extract details from face model (vehicleModelBasicResponse)
+        VehicleGroupPageResponse.VehicleModelBasicResponse faceModel = vg.getVehicleModelBasicResponse();
+        if (faceModel != null) {
+            // Build display name: "Make Model" (e.g. "Hyundai Elantra")
+            String makeName = faceModel.getMake() != null && faceModel.getMake().getName() != null
+                    ? faceModel.getMake().getName().get("en") : null;
+            String modelName = faceModel.getName() != null ? faceModel.getName().get("en") : null;
+            if (makeName != null && modelName != null) {
+                response.setVehicleGroupName(makeName + " " + modelName);
+            } else {
+                response.setVehicleGroupName(vg.getDisplayName());
             }
 
-            // Set vehicle make/model name from face model
-            if (faceModel.getMake() != null && faceModel.getMake().getName() != null) {
-                String makeName = faceModel.getMake().getName().get("en");
-                String modelName = faceModel.getName() != null ? faceModel.getName().get("en") : null;
-                if (makeName != null && modelName != null) {
-                    response.setVehicleGroupName(makeName + " " + modelName);
-                }
+            // Set category from vehicle class (e.g. "Economy", "Compact")
+            if (faceModel.getVehicleClassResponse() != null
+                    && faceModel.getVehicleClassResponse().getName() != null) {
+                response.setCategory(faceModel.getVehicleClassResponse().getName().get("en"));
             }
-        }
 
-        // Get primary image from models if thumbnail is null
-        if (response.getImageUrl() == null && vg.getModels() != null) {
-            for (VehicleGroupPageResponse.VehicleModelData model : vg.getModels()) {
-                if (model.getImages() != null) {
-                    for (VehicleGroupPageResponse.ModelImageData img : model.getImages()) {
-                        if (Boolean.TRUE.equals(img.getPrimary()) && img.getUrl() != null) {
-                            response.setImageUrl(img.getUrl());
-                            break;
-                        }
+            // Extract features (seats, doors, transmission, fuel type, bags)
+            if (faceModel.getFeatures() != null) {
+                log.info("Group {} features: {}", groupId, faceModel.getFeatures());
+                for (VehicleGroupPageResponse.ModelFeatureData mf : faceModel.getFeatures()) {
+                    if (mf.getFeature() == null || mf.getFeature().getName() == null) continue;
+                    String featureName = mf.getFeature().getName().get("en");
+                    if (featureName == null) continue;
+
+                    String featureValue = getFirstFeatureValue(mf);
+                    if (featureValue == null) continue;
+
+                    String fn = featureName.toLowerCase();
+                    if (fn.contains("seat") || fn.contains("passenger")) {
+                        response.setSeats(parseIntOrNull(featureValue));
+                    } else if (fn.contains("door")) {
+                        response.setDoors(parseIntOrNull(featureValue));
+                    } else if (fn.contains("transmission")) {
+                        response.setTransmission(featureValue);
+                    } else if (fn.contains("fuel")) {
+                        response.setFuelType(featureValue);
+                    } else if (fn.contains("bag") || fn.contains("luggage")) {
+                        response.setBags(parseIntOrNull(featureValue));
                     }
                 }
-                if (response.getImageUrl() != null) break;
             }
+
+            // Fallback image from face model images
+            if (response.getImageUrl() == null && faceModel.getImages() != null) {
+                for (VehicleGroupPageResponse.ModelImageData img : faceModel.getImages()) {
+                    if (img.getUrl() != null) {
+                        response.setImageUrl(img.getUrl());
+                        break;
+                    }
+                }
+            }
+        } else {
+            response.setVehicleGroupName(vg.getDisplayName());
         }
 
         return response;
+    }
+
+    private String getFirstFeatureValue(VehicleGroupPageResponse.ModelFeatureData mf) {
+        if (mf.getFeatureValue() != null && !mf.getFeatureValue().isEmpty()) {
+            VehicleGroupPageResponse.FeatureValueInfo fv = mf.getFeatureValue().get(0);
+            if (fv.getName() != null) {
+                return fv.getName().get("en");
+            }
+        }
+        return null;
     }
 
     @Cacheable(value = "vehicleGroups")
@@ -168,23 +191,13 @@ public class AvailabilityService {
         }
     }
 
-    private Integer toInteger(Object value) {
-        if (value == null) return null;
-        if (value instanceof Number) return ((Number) value).intValue();
+    private Integer parseIntOrNull(String value) {
+        if (value == null || value.isBlank()) return null;
         try {
-            return Integer.parseInt(value.toString());
+            return Integer.parseInt(value.trim());
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    private String toString(Object value) {
-        return value != null ? value.toString() : null;
-    }
-
-    private int intOrZero(Object value) {
-        Integer i = toInteger(value);
-        return i != null ? i : 0;
     }
 
     private void validateAllowedBranch(Long branchId, String label) {

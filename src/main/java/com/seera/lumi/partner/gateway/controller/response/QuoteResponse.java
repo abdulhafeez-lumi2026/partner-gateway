@@ -16,6 +16,7 @@ import java.util.List;
 public class QuoteResponse {
     private String quoteId;
     private String vehicleGroup;
+    private Long vehicleGroupId;
     private List<PricingPackage> packages;
     private String pickupLocation;
     private String dropoffLocation;

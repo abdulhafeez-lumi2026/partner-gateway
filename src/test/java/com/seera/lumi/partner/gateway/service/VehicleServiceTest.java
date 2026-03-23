@@ -30,9 +30,9 @@ class VehicleServiceTest {
     @Test
     void getVehicleGroups_success() {
         VehicleGroupPageResponse.VehicleGroupData group1 = new VehicleGroupPageResponse.VehicleGroupData(
-                1, "ECAR", "Economy Car", Map.of("en", "Small economy car"), "https://cdn.example.com/ecar.png", true);
+                1, "ECAR", "Economy Car", Map.of("en", "Small economy car"), null, null, "https://cdn.example.com/ecar.png", true, null);
         VehicleGroupPageResponse.VehicleGroupData group2 = new VehicleGroupPageResponse.VehicleGroupData(
-                2, "CCAR", "Compact Car", Map.of("en", "Compact sedan"), "https://cdn.example.com/ccar.png", true);
+                2, "CCAR", "Compact Car", Map.of("en", "Compact sedan"), null, null, "https://cdn.example.com/ccar.png", true, null);
 
         VehicleGroupPageResponse response = VehicleGroupPageResponse.builder()
                 .content(List.of(group1, group2))

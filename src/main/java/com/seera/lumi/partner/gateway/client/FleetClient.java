@@ -13,8 +13,8 @@ public interface FleetClient {
 
     @GetMapping("/v1/vehicle-group")
     VehicleGroupPageResponse getVehicleGroups(
-            @RequestParam("page") int page,
-            @RequestParam("size") int size,
+            @RequestParam("pageNumber") int pageNumber,
+            @RequestParam("pageSize") int pageSize,
             @RequestParam("enabled") boolean enabled);
 
     @GetMapping("/v1/vehicle-model/{id}")
@@ -22,6 +22,6 @@ public interface FleetClient {
 
     @GetMapping("/v1/addon")
     AddonPageResponse getAddons(
-            @RequestParam("page") int page,
-            @RequestParam("size") int size);
+            @RequestParam("pageNumber") int pageNumber,
+            @RequestParam("pageSize") int pageSize);
 }

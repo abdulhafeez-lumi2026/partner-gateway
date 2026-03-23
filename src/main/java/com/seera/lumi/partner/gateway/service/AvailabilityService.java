@@ -8,6 +8,7 @@ import com.seera.lumi.partner.gateway.client.response.VehicleModelDetailResponse
 import com.seera.lumi.partner.gateway.controller.request.AvailabilityRequest;
 import com.seera.lumi.partner.gateway.controller.response.AvailabilitySearchResponse;
 import com.seera.lumi.partner.gateway.controller.response.VehicleAvailabilityResponse;
+import com.seera.lumi.partner.gateway.controller.response.VehicleFeatures;
 import com.seera.lumi.partner.gateway.exception.PartnerException;
 import com.seera.lumi.partner.gateway.security.PartnerContext;
 import feign.FeignException;
@@ -145,18 +146,17 @@ public class AvailabilityService {
                         groupCode, spec.get("seatingCapacity"), spec.get("doors"),
                         spec.get("fuelType"), spec.get("luggageCountBig"));
 
-                response.setSeats(toInteger(spec.get("seatingCapacity")));
-                response.setDoors(toInteger(spec.get("doors")));
-                response.setTransmission(toString(spec.get("transmission")));
-                response.setFuelType(toString(spec.get("fuelType")));
-
-                // Total bags = big + medium + small
                 int bags = intOrZero(spec.get("luggageCountBig"))
                         + intOrZero(spec.get("luggageCountMedium"))
                         + intOrZero(spec.get("luggageCountSmall"));
-                if (bags > 0) {
-                    response.setBags(bags);
-                }
+
+                response.setFeatures(VehicleFeatures.builder()
+                        .seats(toInteger(spec.get("seatingCapacity")))
+                        .doors(toInteger(spec.get("doors")))
+                        .transmission(toString(spec.get("transmission")))
+                        .fuelType(toString(spec.get("fuelType")))
+                        .bags(bags > 0 ? bags : null)
+                        .build());
             }
 
             // Fallback image from face model images

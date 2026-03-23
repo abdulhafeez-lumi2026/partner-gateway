@@ -6,18 +6,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class VehicleAvailabilityResponse {
-    private String vehicleGroup;
-    private String vehicleGroupName;
-    private String category;
-    private String imageUrl;
-    private VehicleFeatures features;
-    private List<PricingPackage> packages;
+public class VehicleFeatures {
+    private Integer seats;
+    private Integer doors;
+    private Integer bags;
+    private String transmission;
+    private String fuelType;
 }

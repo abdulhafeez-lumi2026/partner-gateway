@@ -7,15 +7,13 @@ import com.seera.lumi.partner.gateway.client.response.PartnerResponse;
 import com.seera.lumi.partner.gateway.controller.request.ClientCredentialsRequest;
 import com.seera.lumi.partner.gateway.controller.response.QuoteResponse;
 import com.seera.lumi.partner.gateway.controller.response.TokenResponse;
-import com.seera.lumi.partner.gateway.controller.response.VehicleAvailabilityResponse;
+import com.seera.lumi.partner.gateway.controller.response.AvailabilitySearchResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import java.util.List;
 
 @FeignClient(name = "partner-service", url = "${api.partner.baseUrl}")
 public interface PartnerServiceClient {
@@ -30,7 +28,7 @@ public interface PartnerServiceClient {
     Object validateApiKey(@RequestParam String apiKey);
 
     @PostMapping("/internal/api/v1/availability")
-    List<VehicleAvailabilityResponse> searchAvailability(@RequestBody InternalAvailabilityRequest request);
+    AvailabilitySearchResponse searchAvailability(@RequestBody InternalAvailabilityRequest request);
 
     @PostMapping("/internal/api/v1/quote")
     QuoteResponse createQuote(@RequestBody InternalQuoteRequest request);

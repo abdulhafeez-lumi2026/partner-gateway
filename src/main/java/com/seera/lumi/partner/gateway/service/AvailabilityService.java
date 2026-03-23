@@ -4,7 +4,9 @@ import com.seera.lumi.partner.gateway.client.FleetClient;
 import com.seera.lumi.partner.gateway.client.PartnerServiceClient;
 import com.seera.lumi.partner.gateway.client.request.InternalAvailabilityRequest;
 import com.seera.lumi.partner.gateway.client.response.VehicleGroupPageResponse;
+import com.seera.lumi.partner.gateway.client.response.VehicleModelDetailResponse;
 import com.seera.lumi.partner.gateway.controller.request.AvailabilityRequest;
+import com.seera.lumi.partner.gateway.controller.response.AvailabilitySearchResponse;
 import com.seera.lumi.partner.gateway.controller.response.VehicleAvailabilityResponse;
 import com.seera.lumi.partner.gateway.exception.PartnerException;
 import com.seera.lumi.partner.gateway.security.PartnerContext;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -27,7 +30,10 @@ public class AvailabilityService {
     private final PartnerServiceClient partnerServiceClient;
     private final FleetClient fleetClient;
 
-    public List<VehicleAvailabilityResponse> searchAvailability(AvailabilityRequest request) {
+    // In-memory cache for model specs (populated once from fleet service)
+    private final Map<Integer, Map<String, Object>> modelSpecCache = new ConcurrentHashMap<>();
+
+    public AvailabilitySearchResponse searchAvailability(AvailabilityRequest request) {
         long totalStart = System.currentTimeMillis();
         try {
             validateAllowedBranch(request.getPickupLocationId(), "pickup");
@@ -49,17 +55,27 @@ public class AvailabilityService {
                     .build();
 
             long pricingStart = System.currentTimeMillis();
-            List<VehicleAvailabilityResponse> responses = partnerServiceClient.searchAvailability(internalRequest);
+            AvailabilitySearchResponse partnerResponse = partnerServiceClient.searchAvailability(internalRequest);
             long pricingMs = System.currentTimeMillis() - pricingStart;
             log.info("[TIMING] partner-service availability: {}ms ({}s)", pricingMs, pricingMs / 1000.0);
 
+            List<VehicleAvailabilityResponse> responses = partnerResponse != null ? partnerResponse.getVehicles() : null;
+
             if (responses == null || responses.isEmpty()) {
-                return List.of();
+                return AvailabilitySearchResponse.builder()
+                        .pickupLocationId(request.getPickupLocationId())
+                        .dropoffLocationId(request.getDropoffLocationId())
+                        .pickupDateTime(request.getPickupDateTime())
+                        .dropoffDateTime(request.getDropoffDateTime())
+                        .promoCode(partnerResponse != null ? partnerResponse.getPromoCode() : null)
+                        .totalVehicles(0)
+                        .vehicles(List.of())
+                        .build();
             }
 
             // Enrich with vehicle group metadata from core fleet service
             long fleetStart = System.currentTimeMillis();
-            Map<Integer, VehicleGroupPageResponse.VehicleGroupData> vehicleGroupMap = getVehicleGroupMap();
+            Map<String, VehicleGroupPageResponse.VehicleGroupData> vehicleGroupMap = getVehicleGroupMap();
             long fleetMs = System.currentTimeMillis() - fleetStart;
             log.info("[TIMING] core-fleet-service vehicle groups: {}ms ({}s)", fleetMs, fleetMs / 1000.0);
 
@@ -73,7 +89,15 @@ public class AvailabilityService {
             long totalMs = System.currentTimeMillis() - totalStart;
             log.info("[TIMING] total availability: {}ms ({}s)", totalMs, totalMs / 1000.0);
 
-            return enriched;
+            return AvailabilitySearchResponse.builder()
+                    .pickupLocationId(request.getPickupLocationId())
+                    .dropoffLocationId(request.getDropoffLocationId())
+                    .pickupDateTime(request.getPickupDateTime())
+                    .dropoffDateTime(request.getDropoffDateTime())
+                    .promoCode(partnerResponse.getPromoCode())
+                    .totalVehicles(enriched.size())
+                    .vehicles(enriched)
+                    .build();
         } catch (FeignException e) {
             log.error("Failed to search availability from partner service: status={}, message={}",
                     e.status(), e.getMessage(), e);
@@ -84,21 +108,15 @@ public class AvailabilityService {
 
     private VehicleAvailabilityResponse enrichWithVehicleMetadata(
             VehicleAvailabilityResponse response,
-            Map<Integer, VehicleGroupPageResponse.VehicleGroupData> vehicleGroupMap) {
+            Map<String, VehicleGroupPageResponse.VehicleGroupData> vehicleGroupMap) {
 
-        Integer groupId;
-        try {
-            groupId = Integer.parseInt(response.getVehicleGroup());
-        } catch (NumberFormatException e) {
-            return response;
-        }
-
-        VehicleGroupPageResponse.VehicleGroupData vg = vehicleGroupMap.get(groupId);
+        String groupCode = response.getVehicleGroup();
+        VehicleGroupPageResponse.VehicleGroupData vg = vehicleGroupMap.get(groupCode);
         if (vg == null) {
             return response;
         }
 
-        // Set image from thumbnail or first model image
+        // Set image from thumbnail
         response.setImageUrl(vg.getThumbnail());
 
         // Extract details from face model (vehicleModelBasicResponse)
@@ -120,29 +138,24 @@ public class AvailabilityService {
                 response.setCategory(faceModel.getVehicleClassResponse().getName().get("en"));
             }
 
-            // Extract features (seats, doors, transmission, fuel type, bags)
-            if (faceModel.getFeatures() != null) {
-                log.info("Group {} features: {}", groupId, faceModel.getFeatures());
-                for (VehicleGroupPageResponse.ModelFeatureData mf : faceModel.getFeatures()) {
-                    if (mf.getFeature() == null || mf.getFeature().getName() == null) continue;
-                    String featureName = mf.getFeature().getName().get("en");
-                    if (featureName == null) continue;
+            // Get specification from vehicle model detail (has seatingCapacity, doors, luggage, etc.)
+            Map<String, Object> spec = getModelSpecification(vg.getFaceModelId());
+            if (spec != null && !spec.isEmpty()) {
+                log.info("Group {} specification: seatingCapacity={}, doors={}, fuelType={}, luggageCountBig={}",
+                        groupCode, spec.get("seatingCapacity"), spec.get("doors"),
+                        spec.get("fuelType"), spec.get("luggageCountBig"));
 
-                    String featureValue = getFirstFeatureValue(mf);
-                    if (featureValue == null) continue;
+                response.setSeats(toInteger(spec.get("seatingCapacity")));
+                response.setDoors(toInteger(spec.get("doors")));
+                response.setTransmission(toString(spec.get("transmission")));
+                response.setFuelType(toString(spec.get("fuelType")));
 
-                    String fn = featureName.toLowerCase();
-                    if (fn.contains("seat") || fn.contains("passenger")) {
-                        response.setSeats(parseIntOrNull(featureValue));
-                    } else if (fn.contains("door")) {
-                        response.setDoors(parseIntOrNull(featureValue));
-                    } else if (fn.contains("transmission")) {
-                        response.setTransmission(featureValue);
-                    } else if (fn.contains("fuel")) {
-                        response.setFuelType(featureValue);
-                    } else if (fn.contains("bag") || fn.contains("luggage")) {
-                        response.setBags(parseIntOrNull(featureValue));
-                    }
+                // Total bags = big + medium + small
+                int bags = intOrZero(spec.get("luggageCountBig"))
+                        + intOrZero(spec.get("luggageCountMedium"))
+                        + intOrZero(spec.get("luggageCountSmall"));
+                if (bags > 0) {
+                    response.setBags(bags);
                 }
             }
 
@@ -162,18 +175,24 @@ public class AvailabilityService {
         return response;
     }
 
-    private String getFirstFeatureValue(VehicleGroupPageResponse.ModelFeatureData mf) {
-        if (mf.getFeatureValue() != null && !mf.getFeatureValue().isEmpty()) {
-            VehicleGroupPageResponse.FeatureValueInfo fv = mf.getFeatureValue().get(0);
-            if (fv.getName() != null) {
-                return fv.getName().get("en");
+    private Map<String, Object> getModelSpecification(Integer faceModelId) {
+        if (faceModelId == null) return null;
+        return modelSpecCache.computeIfAbsent(faceModelId, id -> {
+            try {
+                long start = System.currentTimeMillis();
+                VehicleModelDetailResponse model = fleetClient.getVehicleModel(id);
+                long ms = System.currentTimeMillis() - start;
+                log.info("[TIMING] fleet getVehicleModel({}): {}ms", id, ms);
+                return model != null ? model.getSpecification() : null;
+            } catch (Exception e) {
+                log.warn("Failed to fetch vehicle model {}: {}", id, e.getMessage());
+                return null;
             }
-        }
-        return null;
+        });
     }
 
     @Cacheable(value = "vehicleGroups")
-    public Map<Integer, VehicleGroupPageResponse.VehicleGroupData> getVehicleGroupMap() {
+    public Map<String, VehicleGroupPageResponse.VehicleGroupData> getVehicleGroupMap() {
         try {
             VehicleGroupPageResponse response = fleetClient.getVehicleGroups(0, 1000, true);
             log.info("Core fleet service response: totalElements={}", response != null ? response.getTotalElements() : 0);
@@ -181,8 +200,9 @@ public class AvailabilityService {
                 return Map.of();
             }
             return response.getContent().stream()
+                    .filter(vg -> vg.getCode() != null)
                     .collect(Collectors.toMap(
-                            VehicleGroupPageResponse.VehicleGroupData::getId,
+                            VehicleGroupPageResponse.VehicleGroupData::getCode,
                             Function.identity(),
                             (a, b) -> a));
         } catch (Exception e) {
@@ -191,13 +211,23 @@ public class AvailabilityService {
         }
     }
 
-    private Integer parseIntOrNull(String value) {
-        if (value == null || value.isBlank()) return null;
+    private Integer toInteger(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number) return ((Number) value).intValue();
         try {
-            return Integer.parseInt(value.trim());
+            return Integer.parseInt(value.toString());
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private String toString(Object value) {
+        return value != null ? value.toString() : null;
+    }
+
+    private int intOrZero(Object value) {
+        Integer i = toInteger(value);
+        return i != null ? i : 0;
     }
 
     private void validateAllowedBranch(Long branchId, String label) {

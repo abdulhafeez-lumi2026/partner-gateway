@@ -1,6 +1,5 @@
 package com.seera.lumi.partner.gateway.controller.response;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,17 +14,11 @@ import java.math.BigDecimal;
 public class PricingPackage {
     private String type;
     private String description;
-    private BigDecimal baseRate;
-    private BigDecimal discountPercentage;
-    private BigDecimal discountAmount;
-    private BigDecimal finalRateExcludingVAT;
-    private BigDecimal vatPercentage;
-    private BigDecimal vatAmount;
-    private BigDecimal totalWithVat;
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private String promoCode;
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private BigDecimal promoDiscountPercentage;
+    private BigDecimal subtotal;
+    private BigDecimal discountPercent;
+    private BigDecimal discount;
+    private BigDecimal totalBeforeVat;
+    private BigDecimal vatPercent;
+    private BigDecimal vat;
+    private BigDecimal totalDue;
 }

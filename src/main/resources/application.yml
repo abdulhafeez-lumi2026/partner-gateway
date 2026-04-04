@@ -42,19 +42,19 @@ feign:
   okhttp:
     enabled: true
 
-# Service URLs — defaults point to preprod for downstream, local for partner services
+# Service URLs — k8s service DNS as defaults, override with env vars for local dev
 api:
   booking:
-    baseUrl: ${BOOKING_SERVICE_URL:https://api-preprod.lumirental.com/booking-service}
+    baseUrl: ${BOOKING_SERVICE_URL:http://lumi-ultra-booking-service.backend.svc}
   driver:
-    baseUrl: ${DRIVER_SERVICE_URL:https://api-preprod.lumirental.com/driver-service}
+    baseUrl: ${DRIVER_SERVICE_URL:http://lumi-ultra-driver-service.backend.svc}
   branch:
-    baseUrl: ${BRANCH_SERVICE_URL:https://api-preprod.lumirental.com/branch-service}
+    baseUrl: ${BRANCH_SERVICE_URL:http://lumi-ultra-branch-service.backend.svc}
   fleet:
-    baseUrl: ${FLEET_SERVICE_URL:https://api-preprod.lumirental.com/core-fleet-service}
+    baseUrl: ${FLEET_SERVICE_URL:http://lumi-core-fleet-service.core.svc.cluster.local}
   fleet-legacy:
-    baseUrl: ${FLEET_LEGACY_SERVICE_URL:https://api-preprod.lumirental.com/fleet-service}
+    baseUrl: ${FLEET_LEGACY_SERVICE_URL:http://lumi-ultra-fleet-service.backend.svc}
   partner:
-    baseUrl: ${PARTNER_SERVICE_URL:http://localhost:9997}
+    baseUrl: ${PARTNER_SERVICE_URL:http://lumi-core-partner-service.core.svc.cluster.local}
   core-booking:
-    baseUrl: ${CORE_BOOKING_SERVICE_URL:http://localhost:9996}
+    baseUrl: ${CORE_BOOKING_SERVICE_URL:http://lumi-core-booking-service.core.svc.cluster.local}

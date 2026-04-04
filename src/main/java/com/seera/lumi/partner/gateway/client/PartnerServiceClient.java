@@ -2,7 +2,6 @@ package com.seera.lumi.partner.gateway.client;
 
 import com.seera.lumi.partner.gateway.client.request.InternalAvailabilityRequest;
 import com.seera.lumi.partner.gateway.client.request.InternalQuoteRequest;
-import com.seera.lumi.partner.gateway.client.response.ActivePromotionResponse;
 import com.seera.lumi.partner.gateway.client.response.PartnerResponse;
 import com.seera.lumi.partner.gateway.controller.request.ClientCredentialsRequest;
 import com.seera.lumi.partner.gateway.controller.response.QuoteResponse;
@@ -35,7 +34,4 @@ public interface PartnerServiceClient {
 
     @GetMapping("/internal/api/v1/quote/{quoteId}")
     QuoteResponse getQuote(@PathVariable("quoteId") String quoteId);
-
-    @GetMapping("/internal/api/v1/promotions/active")
-    ActivePromotionResponse getActivePromotion(@RequestParam("debtorCode") String debtorCode);
 }

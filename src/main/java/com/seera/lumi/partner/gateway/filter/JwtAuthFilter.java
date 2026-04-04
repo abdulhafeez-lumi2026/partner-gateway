@@ -50,7 +50,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         .parseSignedClaims(token)
                         .getPayload();
 
-                String partnerCode = claims.getSubject();
+                String partnerCode = (String) claims.get("partnerCode");
 
                 Map<String, Object> claimsMap = new HashMap<>();
                 claimsMap.put("partnerId", claims.get("partnerId"));

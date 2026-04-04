@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -35,4 +36,8 @@ public class QuoteRequest {
 
     @NotBlank(message = "vehicleGroup is required")
     private String vehicleGroup;
+
+    private Long insuranceId;
+
+    private List<Long> addOnIds;
 }

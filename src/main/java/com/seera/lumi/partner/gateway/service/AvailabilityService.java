@@ -40,17 +40,17 @@ public class AvailabilityService {
             validateAllowedBranch(request.getPickupLocationId(), "pickup");
             validateAllowedBranch(request.getDropoffLocationId(), "dropoff");
 
-            log.info("Searching availability: pickup={}, dropoff={}, from={}, to={}, debtorCode={}",
+            log.info("Searching availability: pickup={}, dropoff={}, from={}, to={}, partnerCode={}",
                     request.getPickupLocationId(), request.getDropoffLocationId(),
                     request.getPickupDateTime(), request.getDropoffDateTime(),
-                    PartnerContext.getDebtorCode());
+                    PartnerContext.getPartnerCode());
 
             InternalAvailabilityRequest internalRequest = InternalAvailabilityRequest.builder()
                     .pickupLocationId(request.getPickupLocationId())
                     .dropoffLocationId(request.getDropoffLocationId())
                     .pickupDateTime(request.getPickupDateTime())
                     .dropoffDateTime(request.getDropoffDateTime())
-                    .debtorCode(PartnerContext.getDebtorCode())
+                    .partnerCode(PartnerContext.getPartnerCode())
                     .allowedBranches(PartnerContext.getAllowedBranches())
                     .allowedVehicleGroups(PartnerContext.getAllowedVehicleGroups())
                     .build();

@@ -31,7 +31,9 @@ public class QuoteService {
                 .pickupDateTime(request.getPickupDateTime())
                 .dropoffDateTime(request.getDropoffDateTime())
                 .vehicleGroup(request.getVehicleGroup())
-                .debtorCode(PartnerContext.getDebtorCode())
+                .insuranceId(request.getInsuranceId())
+                .addOnIds(request.getAddOnIds())
+                .partnerCode(PartnerContext.getPartnerCode())
                 .allowedBranches(PartnerContext.getAllowedBranches())
                 .allowedVehicleGroups(PartnerContext.getAllowedVehicleGroups())
                 .build();

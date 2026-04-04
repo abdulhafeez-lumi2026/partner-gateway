@@ -37,7 +37,7 @@ istio:
         name: "core-api-gateway"
         match:
             - uri: /partner-gateway/
-                rewrite: /
+              rewrite: /
 
     customHeaders:
       enabled: true
